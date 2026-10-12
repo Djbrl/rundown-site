@@ -34,6 +34,6 @@ One static file, `index.html`. No build step. Preview with `python3 -m http.serv
 - **Ask why** (the typed question and a grounded answer), **Install** (`#install`, Rundown ink, one Claude Code window, the usage-stats line with the opt-out), **Roadmap** (`#roadmap`, Today / Late October / After, with the release-email form), and the closing.
 - **Share image:** `img/og.png` (1200×630) in the `og:` and `twitter:` tags, which use the absolute URL of the live site. Change them if the domain changes.
 
-**Live:** https://brainstorm-landing.vercel.app
+**Live:** https://rundown-dev.vercel.app
 
-**Redeploy:** `cd site && vercel deploy --prod --yes`. `site/.vercel/` holds the project link and is gitignored; if it's missing, run `vercel link --project brainstorm-landing` first.
+**Redeploy:** `cd site && vercel deploy --prod --yes`. `site/.vercel/` holds the project link and is gitignored; if it's missing, run `vercel link --project brainstorm-landing` first (the project keeps its old name; rundown-dev.vercel.app is one of its domains).

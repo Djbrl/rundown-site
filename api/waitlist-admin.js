@@ -10,7 +10,7 @@ const { blobAuth, listAll, putJson, findOne, deleteAll, getJson } = require("./_
 const { tokenFor } = require("./_unsubscribe");
 const { signupPath, unsubscribedPath, allPaths } = require("./_waitlist");
 
-const SITE = process.env.SITE_URL || "https://brainstorm-landing.vercel.app";
+const SITE = process.env.SITE_URL || "https://rundown-dev.vercel.app";
 const same = (a, b) => { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && timingSafeEqual(x, y); };
 const unsubscribeLink = (email, secret) => `${SITE}/unsubscribe.html?${new URLSearchParams({ e: email, t: tokenFor(email, secret) })}`;
 

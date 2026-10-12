@@ -14,7 +14,7 @@ const { sendMail } = require("./_mail");
 const { pendingPath, confirmedPath, signupPath, unsubscribedPath, mailReady, PENDING_DAYS } = require("./_waitlist");
 
 const EMAIL = /^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/;
-const SITE = process.env.SITE_URL || "https://brainstorm-landing.vercel.app";
+const SITE = process.env.SITE_URL || "https://rundown-dev.vercel.app";
 const RESEND_AFTER_MS = 10 * 60_000; // signing up again within this time doesn't send a second email
 
 module.exports = async (req, res) => {

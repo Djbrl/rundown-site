@@ -24,7 +24,7 @@ const require = createRequire(import.meta.url);
 const { blobAuth, listAll, getJson } = require("../api/_blob.js");
 const { tokenFor } = require("../api/_unsubscribe.js");
 
-const SITE = process.env.SITE_URL || "https://brainstorm-landing.vercel.app";
+const SITE = process.env.SITE_URL || "https://rundown-dev.vercel.app";
 const RESEND = process.env.RESEND_API_URL || "https://api.resend.com";
 const argv = process.argv.slice(2);
 const opt = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };
