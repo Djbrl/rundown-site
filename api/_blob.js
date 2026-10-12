@@ -50,4 +50,10 @@ async function findOne(auth, pathname) {
   return (await listAll(auth, pathname, 1)).find((b) => b.pathname === pathname) || null;
 }
 
-module.exports = { API, blobAuth, listAll, deleteAll, putJson, findOne };
+/** The JSON content of a private blob (by URL), or null if it can't be read. */
+async function getJson(auth, url) {
+  const r = await fetch(url, { headers: blobHeaders(auth) });
+  return r.ok ? r.json().catch(() => null) : null;
+}
+
+module.exports = { API, blobAuth, listAll, deleteAll, putJson, findOne, getJson };

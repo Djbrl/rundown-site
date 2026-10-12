@@ -4,7 +4,7 @@
 // deletes (link checkers open links): it sends people to the page with the button.
 const { blobAuth, putJson, findOne, deleteAll } = require("./_blob");
 const { tokenOk } = require("./_unsubscribe");
-const { pendingPath, confirmedPath, legacyPath, unsubscribedPath } = require("./_waitlist");
+const { allPaths, unsubscribedPath } = require("./_waitlist");
 
 module.exports = async (req, res) => {
   res.setHeader("cache-control", "no-store");
@@ -22,7 +22,7 @@ module.exports = async (req, res) => {
   try {
     // The marker first (a one-way fingerprint, not the address), so the address isn't re-added by a later signup.
     await putJson(auth, unsubscribedPath(email, process.env.UNSUBSCRIBE_SECRET), { at: new Date().toISOString() });
-    const found = (await Promise.all([pendingPath(email), confirmedPath(email), legacyPath(email)].map((p) => findOne(auth, p)))).filter(Boolean);
+    const found = (await Promise.all(allPaths(email).map((p) => findOne(auth, p)))).filter(Boolean);
     await deleteAll(auth, found.map((b) => b.url));
     return res.status(200).json({ ok: true }); // the same answer whether the address was on the list or not
   } catch (e) {

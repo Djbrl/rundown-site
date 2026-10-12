@@ -3,12 +3,15 @@
 // (api/waitlist-confirm.js) is what makes it a recipient. An address that unsubscribed, or is already confirmed, gets the
 // same answer and no email, so the form never tells anyone whether an address is known. No dependencies: it calls the
 // same Blob API as the @vercel/blob SDK (v2.4, API version 12). Needs UNSUBSCRIBE_SECRET, RESEND_API_KEY, RESEND_FROM.
+// Manual mode, when RESEND_API_KEY or RESEND_FROM is missing: no email is sent; the address is saved straight away as a
+// signup (waitlist/signups/), and the publisher welcomes it by hand from their own address (admin.html). The answer's
+// `confirm` says which: true (check your inbox) or false (on the list).
 // Read the list with `vercel blob list --prefix waitlist/confirmed/` from site/.
 const { sameOrigin } = require("./_usage");
 const { blobAuth, putJson, findOne } = require("./_blob");
 const { tokenFor } = require("./_unsubscribe");
 const { sendMail } = require("./_mail");
-const { pendingPath, confirmedPath, unsubscribedPath, PENDING_DAYS } = require("./_waitlist");
+const { pendingPath, confirmedPath, signupPath, unsubscribedPath, mailReady, PENDING_DAYS } = require("./_waitlist");
 
 const EMAIL = /^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/;
 const SITE = process.env.SITE_URL || "https://brainstorm-landing.vercel.app";
@@ -24,7 +27,20 @@ module.exports = async (req, res) => {
   if (email.length > 254 || !EMAIL.test(email)) return res.status(400).json({ error: "That doesn't look like an email address." });
 
   const secret = process.env.UNSUBSCRIBE_SECRET, auth = blobAuth(req);
-  if (!auth || !secret || !process.env.RESEND_API_KEY || !process.env.RESEND_FROM) return res.status(503).json({ error: "The waitlist isn't open yet." });
+  if (!auth || !secret) return res.status(503).json({ error: "The waitlist isn't open yet." });
+
+  if (!mailReady()) {
+    const done = () => res.status(200).json({ ok: true, confirm: false }); // the same answer whatever was found
+    try {
+      if (await findOne(auth, unsubscribedPath(email, secret))) return done(); // they left: not added again
+      if (await findOne(auth, signupPath(email)) || await findOne(auth, confirmedPath(email))) return done(); // already on the list (keeps its welcomed state)
+      await putJson(auth, signupPath(email), { email, at: new Date().toISOString(), welcomed: false, consent: "Release email: we only email when it's necessary; unsubscribe link in every email", policy: "privacy-2026-10-12" });
+      return done();
+    } catch (e) {
+      console.error("waitlist:", e.message); // never the address
+      return res.status(502).json({ error: "Couldn't save that. Try again in a minute." });
+    }
+  }
 
   try {
     if (await findOne(auth, unsubscribedPath(email, secret))) return res.status(200).json({ ok: true, confirm: true }); // they left: not added again, no email

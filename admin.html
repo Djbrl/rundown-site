@@ -46,6 +46,14 @@ th { font-size: 12px; font-weight: 600; color: var(--muted); }
 td.n { text-align: right; font-variant-numeric: tabular-nums; }
 .links { margin-top: 40px; font-size: 13px; color: var(--muted); }
 a { color: var(--blue); }
+.wl-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+.wl-bar .note { font-size: 13px; color: var(--muted); }
+#wlTable td { vertical-align: middle; }
+#wlTable td.acts { text-align: right; white-space: nowrap; }
+#wlTable td.acts button { height: 28px; padding: 0 10px; font-size: 13px; margin-left: 4px; }
+#wlTable .addr { word-break: break-all; }
+.done { color: var(--muted); }
+@media (max-width: 640px) { #wlTable td.acts { white-space: normal; } #wlTable td.acts button { margin: 2px 0 2px 4px; } }
 </style>
 </head>
 <body>
@@ -77,6 +85,17 @@ a { color: var(--blue); }
     </div>
     <p class="links">Website visits: Vercel → project → Analytics. What the app sends: <a href="https://github.com/Djbrl/brainstorm#usage-stats">README, Usage stats</a>.</p>
   </div>
+
+  <section id="wl" hidden>
+    <h2>Signups</h2>
+    <p class="sub">People who asked for the release email. Welcome them from your own address: copy the new ones into Bcc, send, then mark them as welcomed. Paste each person's unsubscribe link into the email, or offer to remove them if they reply.</p>
+    <div class="wl-bar">
+      <button class="primary" id="wlCopy" type="button">Copy new addresses</button>
+      <button id="wlMarkCopied" type="button" hidden>Mark the copied ones as welcomed</button>
+      <span class="note" id="wlNote" role="status" aria-live="polite"></span>
+    </div>
+    <table id="wlTable"></table>
+  </section>
 </div>
 <script>
 const USE_NAMES = { op: "App opened", th: "Threads opened", rp: "Replays played", lv: "Live follows", sh: "Threads shared", ak: "Questions asked", pj: "Projects opened", se: "Agent sessions seen", st: "Agent steps seen" };
@@ -156,8 +175,66 @@ function bars(el, data, color, noun) {
   sv.addEventListener("pointerleave", () => { tip.style.display = "none"; });
 }
 
+/* Signups (api/waitlist-admin.js), with the same token. */
+let signups = [], copied = [];
+const api = async (method, body) => {
+  const r = await fetch("/api/waitlist-admin", { method, headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || `Error ${r.status}`);
+  return d;
+};
+const note = (t) => { $("wlNote").textContent = t; };
+const day = (iso) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); };
+
+async function loadSignups() {
+  if (!token) return;
+  try { signups = (await api("GET")).signups; renderSignups(); $("wl").hidden = false; }
+  catch (e) { $("wl").hidden = false; $("wlTable").innerHTML = ""; note(e.message); }
+}
+
+function renderSignups() {
+  const fresh = signups.filter((s) => !s.welcomed).length;
+  $("wlCopy").textContent = fresh ? `Copy ${fresh} new address${fresh === 1 ? "" : "es"}` : "Copy new addresses";
+  $("wlCopy").disabled = !fresh;
+  $("wlTable").innerHTML = `<thead><tr><th>Address</th><th>Signed up</th><th>Welcomed</th><th></th></tr></thead><tbody>`
+    + (signups.length ? signups.map((s, i) => `<tr><td class="addr">${esc(s.email)}</td><td>${esc(day(s.at))}</td><td class="${s.welcomed ? "done" : ""}">${s.welcomed ? esc(day(s.welcomedAt) || "Yes") : "Not yet"}</td>`
+      + `<td class="acts"><button type="button" data-act="link" data-i="${i}">Copy unsubscribe link</button>${s.welcomed ? "" : `<button type="button" data-act="welcomed" data-i="${i}">Mark as welcomed</button>`}<button type="button" data-act="remove" data-i="${i}">Remove</button></td></tr>`).join("")
+      : `<tr><td colspan="4" style="color:var(--muted)">Nobody yet</td></tr>`) + "</tbody>";
+}
+
+async function copy(text) { try { await navigator.clipboard.writeText(text); return true; } catch { window.prompt("Copy this:", text); return true; } }
+
+$("wlCopy").addEventListener("click", async () => {
+  copied = signups.filter((s) => !s.welcomed).map((s) => s.email);
+  if (!copied.length) return;
+  await copy(copied.join(", "));
+  $("wlMarkCopied").hidden = false;
+  note(`${copied.length} copied. Paste them into Bcc.`);
+});
+
+$("wlMarkCopied").addEventListener("click", async () => {
+  if (!copied.length) return;
+  try { const d = await api("POST", { action: "welcomed", emails: copied }); note(`${d.marked} marked as welcomed.`); copied = []; $("wlMarkCopied").hidden = true; await loadSignups(); }
+  catch (e) { note(e.message); }
+});
+
+$("wlTable").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const s = signups[+b.dataset.i]; if (!s) return;
+  try {
+    if (b.dataset.act === "link") { await copy(s.unsubscribe); note(`Unsubscribe link for ${s.email} copied.`); return; }
+    if (b.dataset.act === "welcomed") { await api("POST", { action: "welcomed", emails: [s.email] }); note(`${s.email} marked as welcomed.`); }
+    if (b.dataset.act === "remove") {
+      if (!confirm(`Remove ${s.email}? Their address is deleted and a later signup won't add it again.`)) return;
+      await api("POST", { action: "remove", emails: [s.email] }); note(`${s.email} removed.`);
+    }
+    await loadSignups();
+  } catch (err) { note(err.message); }
+});
+
+$("auth").addEventListener("submit", () => loadSignups());
 $("days").addEventListener("change", load);
-if (token) load();
+if (token) { load(); loadSignups(); }
 </script>
 </body>
 </html>

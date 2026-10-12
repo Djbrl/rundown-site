@@ -1,13 +1,16 @@
 // The release email: the recipient list with each person's unsubscribe links, and sending it through Resend.
 // Run from site/. Setup, once per machine:
 //   vercel env pull tools/.env.local   (the Blob store token)
+//   Listing recipients needs only that and UNSUBSCRIBE_SECRET; --send needs Resend. Without Resend (manual mode), welcome
+//   and write to people from admin.html instead.
 //   then add to tools/.env.local yourself:
 //     UNSUBSCRIBE_SECRET=<the value you saved>   (sensitive in Vercel, so env pull leaves it out; must match Vercel's)
 //     RESEND_API_KEY=re_…                        (a Resend key with sending access)
 //     RESEND_FROM=Djibril from Rundown <hello@your-verified-domain>
 //
 //   node --env-file=tools/.env.local tools/release-email.mjs > recipients.csv
-//       the confirmed addresses only (waitlist/confirmed/; people who haven't clicked the confirm link aren't on it), as CSV (email, unsubscribe_url, list_unsubscribe, list_unsubscribe_post). Never commit it.
+//       the recipients: confirmed addresses (waitlist/confirmed/; people who haven't clicked the confirm link aren't on it)
+//       and manual-mode signups you have welcomed (waitlist/signups/ marked welcomed on admin.html), as CSV (email, unsubscribe_url, list_unsubscribe, list_unsubscribe_post). Never commit it.
 //   node --env-file=tools/.env.local tools/release-email.mjs --send --subject "Rundown is out" --test you@example.com
 //       one copy of tools/release-email.html to you, to check it
 //   node --env-file=tools/.env.local tools/release-email.mjs --send --subject "Rundown is out"
@@ -18,7 +21,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const { blobAuth, listAll } = require("../api/_blob.js");
+const { blobAuth, listAll, getJson } = require("../api/_blob.js");
 const { tokenFor } = require("../api/_unsubscribe.js");
 
 const SITE = process.env.SITE_URL || "https://brainstorm-landing.vercel.app";
@@ -39,7 +42,12 @@ const links = (email) => {
 async function recipients() {
   const auth = blobAuth({ headers: {} });
   if (!auth) fail("No Blob store credentials: vercel env pull tools/.env.local first.");
-  return (await listAll(auth, "waitlist/confirmed/")).map((b) => b.pathname.replace(/^waitlist\/confirmed\//, "").replace(/\.json$/, "")).sort();
+  const name = (b) => b.pathname.replace(/^waitlist\/(confirmed|signups)\//, "").replace(/\.json$/, "");
+  const confirmed = (await listAll(auth, "waitlist/confirmed/")).map(name);
+  // Manual-mode signups count once they've been welcomed by hand (they then know who writes and how to leave).
+  const welcomed = [];
+  for (const b of await listAll(auth, "waitlist/signups/")) if ((await getJson(auth, b.url))?.welcomed) welcomed.push(name(b));
+  return [...new Set([...confirmed, ...welcomed])].sort();
 }
 
 if (!flag("--send")) {
