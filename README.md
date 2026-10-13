@@ -25,7 +25,7 @@ One static file, `index.html`. No build step. Preview with `python3 -m http.serv
 **Switching to Resend later:** verify a sending domain in Resend, then `vercel env add RESEND_API_KEY production` and `vercel env add RESEND_FROM production` (e.g. `Djibril from Rundown <hello@your-domain>`) and redeploy. New signups then get the confirm email (double opt-in); existing signups stay as they are and keep showing on the admin page. `tools/release-email.mjs` sends to confirmed addresses plus signups marked welcomed.
 
 **What's on it** (about 13 screens at 1440×900, 10 on a phone), in order:
-- **Band** (desktop only): "Rundown 0.9.1 is out", one link to Install.
+- **Band** (desktop only): "Rundown 0.9.2 is out", one link to Install.
 - **Hero** (`#hero`, 300vh, pinned): the title with Install for Claude Code and Try the live demo, then the three agents' story on the map (`hero` script, an illustration, not product data), ending on "We give you the rundown."
 - **Every agent. Every project.** (`#crew`): an app window drawn as SVG (`agentMap`), three agents moving between files, Find a thread over it.
 - **Claude Code. Codex. One map.** (`#codex`): the threads list in two groups beside one map with an agent of each.
